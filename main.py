@@ -3,13 +3,11 @@ import requests
 import io
 from urllib.parse import urlencode
 
-# Настройки карты
 LONGITUDE = 37.617635  # Долгота (Москва)
 LATITUDE = 55.755768  # Широта (Москва)
 ZOOM = 12  # Масштаб (1-17)
 WINDOW_SIZE = (650, 450)
 API_KEY = "f3a0fe3a-b07e-4840-a1da-06f18b2ddf13"
-
 
 pygame.init()
 screen = pygame.display.set_mode(WINDOW_SIZE)
@@ -51,6 +49,15 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_PAGEUP:
+                if ZOOM < 17:
+                    ZOOM += 1
+                    map_image = load_map(LONGITUDE, LATITUDE, ZOOM)
+            elif event.key == pygame.K_PAGEDOWN:
+                if ZOOM > 1:
+                    ZOOM -= 1
+                    map_image = load_map(LONGITUDE, LATITUDE, ZOOM)
 
     screen.blit(map_image, (0, 0))
     pygame.display.flip()
