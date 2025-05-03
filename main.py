@@ -3,19 +3,36 @@ import requests
 import io
 from urllib.parse import urlencode
 
-LONGITUDE = 37.617635  # Долгота (Москва)
-LATITUDE = 55.755768  # Широта (Москва)
+
+LONGITUDE = 37.617635  # Начальная долгота (Москва)
+LATITUDE = 55.755768  # Начальная широта (Москва)
 ZOOM = 12  # Масштаб (1-17)
 WINDOW_SIZE = (650, 450)
 API_KEY = "f3a0fe3a-b07e-4840-a1da-06f18b2ddf13"
+
+MIN_LONGITUDE = -180
+MAX_LONGITUDE = 180
+MIN_LATITUDE = -85
+MAX_LATITUDE = 85
 
 pygame.init()
 screen = pygame.display.set_mode(WINDOW_SIZE)
 pygame.display.set_caption("Яндекс.Карта")
 
 
+def calculate_move_step(zoom):
+    """Вычисляет шаг перемещения в зависимости от масштаба"""
+    # Базовый шаг (при zoom=12)
+    base_step = 0.1
+
+    scale_factor = 2 ** (12 - zoom) # рассчет шага в зависимости от зума
+
+    step = base_step * scale_factor
+    return max(0.0001, min(10.0, step))  # Ограничиваем шаг разумными пределами
+
+
 def load_map(longitude, latitude, zoom):
-    """Загружает карту из API Яндекс. Карт без сохранения в файл"""
+    """Загружает карту из API Яндекс. Карт"""
     params = {
         'll': f"{longitude},{latitude}",
         'z': zoom,
@@ -29,9 +46,7 @@ def load_map(longitude, latitude, zoom):
     try:
         response = requests.get(url)
         response.raise_for_status()
-
         image_bytes = io.BytesIO(response.content)
-
         return pygame.image.load(image_bytes)
     except Exception as e:
         print(f"Ошибка загрузки карты: {e}")
@@ -40,24 +55,49 @@ def load_map(longitude, latitude, zoom):
         return error_surface
 
 
-map_image = load_map(LONGITUDE, LATITUDE, ZOOM)
+def adjust_coordinates(lon, lat):
+    """Корректирует координаты в допустимых пределах"""
+    lon = max(MIN_LONGITUDE, min(MAX_LONGITUDE, lon))
+    lat = max(MIN_LATITUDE, min(MAX_LATITUDE, lat))
+    return lon, lat
+
+
+current_lon, current_lat = LONGITUDE, LATITUDE
+map_image = load_map(current_lon, current_lat, ZOOM)
 
 running = True
 clock = pygame.time.Clock()
-
 while running:
+    move_step = calculate_move_step(ZOOM)
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_PAGEUP:
-                if ZOOM < 17:
-                    ZOOM += 1
-                    map_image = load_map(LONGITUDE, LATITUDE, ZOOM)
-            elif event.key == pygame.K_PAGEDOWN:
-                if ZOOM > 1:
-                    ZOOM -= 1
-                    map_image = load_map(LONGITUDE, LATITUDE, ZOOM)
+            # Изменение масштаба
+            if event.key == pygame.K_PAGEUP and ZOOM < 17:
+                ZOOM += 1
+                map_image = load_map(current_lon, current_lat, ZOOM)
+            elif event.key == pygame.K_PAGEDOWN and ZOOM > 1:
+                ZOOM -= 1
+                map_image = load_map(current_lon, current_lat, ZOOM)
+            # Перемещение карты
+            elif event.key == pygame.K_UP:
+                current_lat += move_step
+                current_lon, current_lat = adjust_coordinates(current_lon, current_lat)
+                map_image = load_map(current_lon, current_lat, ZOOM)
+            elif event.key == pygame.K_DOWN:
+                current_lat -= move_step
+                current_lon, current_lat = adjust_coordinates(current_lon, current_lat)
+                map_image = load_map(current_lon, current_lat, ZOOM)
+            elif event.key == pygame.K_LEFT:
+                current_lon -= move_step
+                current_lon, current_lat = adjust_coordinates(current_lon, current_lat)
+                map_image = load_map(current_lon, current_lat, ZOOM)
+            elif event.key == pygame.K_RIGHT:
+                current_lon += move_step
+                current_lon, current_lat = adjust_coordinates(current_lon, current_lat)
+                map_image = load_map(current_lon, current_lat, ZOOM)
 
     screen.blit(map_image, (0, 0))
     pygame.display.flip()
