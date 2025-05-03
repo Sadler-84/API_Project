@@ -3,12 +3,12 @@ import requests
 import io
 from urllib.parse import urlencode
 
-
 LONGITUDE = 37.617635  # Начальная долгота (Москва)
 LATITUDE = 55.755768  # Начальная широта (Москва)
 ZOOM = 12  # Масштаб (1-17)
 WINDOW_SIZE = (650, 450)
 API_KEY = "f3a0fe3a-b07e-4840-a1da-06f18b2ddf13"
+DARK_MODE = False  # Переименовал переменную для ясности
 
 MIN_LONGITUDE = -180
 MAX_LONGITUDE = 180
@@ -22,24 +22,25 @@ pygame.display.set_caption("Яндекс.Карта")
 
 def calculate_move_step(zoom):
     """Вычисляет шаг перемещения в зависимости от масштаба"""
-    # Базовый шаг (при zoom=12)
     base_step = 0.1
-
-    scale_factor = 2 ** (12 - zoom) # рассчет шага в зависимости от зума
-
+    scale_factor = 2 ** (12 - zoom)
     step = base_step * scale_factor
-    return max(0.0001, min(10.0, step))  # Ограничиваем шаг разумными пределами
+    return max(0.0001, min(10.0, step))
 
 
-def load_map(longitude, latitude, zoom):
+def load_map(longitude, latitude, zoom, dark_mode=False):
     """Загружает карту из API Яндекс. Карт"""
     params = {
         'll': f"{longitude},{latitude}",
         'z': zoom,
         'size': f"{WINDOW_SIZE[0]},{WINDOW_SIZE[1]}",
-        'l': 'map',
+        'l': 'map',  # Основной слой
         'apikey': API_KEY
     }
+
+    #Добавляем темную тему
+    if dark_mode:
+        params['theme'] = 'dark'
 
     url = f"https://static-maps.yandex.ru/1.x/?{urlencode(params)}"
 
@@ -63,7 +64,7 @@ def adjust_coordinates(lon, lat):
 
 
 current_lon, current_lat = LONGITUDE, LATITUDE
-map_image = load_map(current_lon, current_lat, ZOOM)
+map_image = load_map(current_lon, current_lat, ZOOM, DARK_MODE)
 
 running = True
 clock = pygame.time.Clock()
@@ -77,28 +78,33 @@ while running:
             # Изменение масштаба
             if event.key == pygame.K_PAGEUP and ZOOM < 17:
                 ZOOM += 1
-                map_image = load_map(current_lon, current_lat, ZOOM)
+                map_image = load_map(current_lon, current_lat, ZOOM, DARK_MODE)
             elif event.key == pygame.K_PAGEDOWN and ZOOM > 1:
                 ZOOM -= 1
-                map_image = load_map(current_lon, current_lat, ZOOM)
+                map_image = load_map(current_lon, current_lat, ZOOM, DARK_MODE)
             # Перемещение карты
             elif event.key == pygame.K_UP:
                 current_lat += move_step
                 current_lon, current_lat = adjust_coordinates(current_lon, current_lat)
-                map_image = load_map(current_lon, current_lat, ZOOM)
+                map_image = load_map(current_lon, current_lat, ZOOM, DARK_MODE)
             elif event.key == pygame.K_DOWN:
                 current_lat -= move_step
                 current_lon, current_lat = adjust_coordinates(current_lon, current_lat)
-                map_image = load_map(current_lon, current_lat, ZOOM)
+                map_image = load_map(current_lon, current_lat, ZOOM, DARK_MODE)
             elif event.key == pygame.K_LEFT:
                 current_lon -= move_step
                 current_lon, current_lat = adjust_coordinates(current_lon, current_lat)
-                map_image = load_map(current_lon, current_lat, ZOOM)
+                map_image = load_map(current_lon, current_lat, ZOOM, DARK_MODE)
             elif event.key == pygame.K_RIGHT:
                 current_lon += move_step
                 current_lon, current_lat = adjust_coordinates(current_lon, current_lat)
-                map_image = load_map(current_lon, current_lat, ZOOM)
+                map_image = load_map(current_lon, current_lat, ZOOM, DARK_MODE)
+            # Перключение в темную тему
+            elif event.key == pygame.K_d:
+                DARK_MODE = not DARK_MODE
+                map_image = load_map(current_lon, current_lat, ZOOM, DARK_MODE)
 
+    # Отрисовка
     screen.blit(map_image, (0, 0))
     pygame.display.flip()
     clock.tick(60)
